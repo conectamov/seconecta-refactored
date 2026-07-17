@@ -8,6 +8,13 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 72px;
+  scroll-snap-type: none;
+}
+
+html.tl-wheel-stepping {
+  scroll-behavior: auto;
+  scroll-snap-type: none;
 }
 
 body {
