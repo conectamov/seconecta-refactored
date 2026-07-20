@@ -25,8 +25,10 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from "react";
 import { SiteHeader } from "@/components/site-header";
+import { useOpportunityJourney } from "@/components/opportunity-journey-provider";
 import { useJourneyOnboarding } from "@/hooks/use-journey-onboarding";
 import type { OnboardingProfile } from "@/types/onboarding";
+import type { OpportunityJourney } from "@/types/opportunity-journey";
 import { getTaxonomyFromSearch, OPPORTUNITY_TYPES, THEMES, type OpportunityType, type Theme } from "@/types/taxonomy";
 import "./opportunities.css";
 
@@ -319,13 +321,15 @@ function getOpportunityTypeScore(type: string, profile: OnboardingProfile | null
 
 function OpportunityCard({
   opportunity,
-  saved,
-  onSave,
+  journey,
+  onStartJourney,
+  onRemoveJourney,
   compact = false,
 }: {
   opportunity: Opportunity;
-  saved: boolean;
-  onSave: (id: number) => void;
+  journey?: OpportunityJourney;
+  onStartJourney: (opportunity: Opportunity) => void;
+  onRemoveJourney: (opportunityId: number) => void;
   compact?: boolean;
 }) {
   const metadata = opportunityMetadata[opportunity.id];
@@ -353,13 +357,14 @@ function OpportunityCard({
             <Share2 size={17} />
           </button>
           <button
-            className={`icon-button ${saved ? "is-saved" : ""}`}
+            className={`icon-button ${journey ? "is-saved" : ""}`}
             type="button"
-            onClick={() => onSave(opportunity.id)}
-            aria-label={saved ? `Remover ${opportunity.title} dos salvos` : `Salvar ${opportunity.title}`}
-            aria-pressed={saved}
+            onClick={() => journey ? onRemoveJourney(opportunity.id) : onStartJourney(opportunity)}
+            aria-label={journey ? `Remover ${opportunity.title} da sua jornada` : `Adicionar ${opportunity.title} à sua jornada`}
+            aria-pressed={Boolean(journey)}
+            title={journey ? "Remover da sua jornada" : "Adicionar à sua jornada"}
           >
-            <Bookmark size={17} fill={saved ? "currentColor" : "none"} />
+            <Bookmark size={17} fill={journey ? "currentColor" : "none"} />
           </button>
         </div>
       </div>
@@ -386,9 +391,9 @@ function OpportunityCard({
           <CalendarDays size={15} />
           <span>{deadline.label}</span>
         </div>
-        <button className="card-open-button" type="button" aria-label={`Ver detalhes de ${opportunity.title}`}>
+        <Link className="card-open-button" href={`/explorar/${opportunity.id}`} aria-label={`Ver detalhes de ${opportunity.title}`}>
           Ver oportunidade <ArrowRight size={16} />
-        </button>
+        </Link>
       </div>
     </motion.article>
   );
@@ -427,6 +432,7 @@ function FilterContent({ formatAccess, setFormatAccess, educationLevels, setEduc
 
 export default function OpportunitiesPage() {
   const { profile, startOnboarding } = useJourneyOnboarding();
+  const { journeys, startJourney, removeJourney } = useOpportunityJourney();
   const [query, setQuery] = useState("");
   const [intent, setIntent] = useState("");
   const [sort, setSort] = useState("recommended");
@@ -440,7 +446,6 @@ export default function OpportunitiesPage() {
   const [competitionLevels, setCompetitionLevels] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
-  const [saved, setSaved] = useState<number[]>([3]);
   const [visibleCount, setVisibleCount] = useState(6);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [recommendationInfoOpen, setRecommendationInfoOpen] = useState(false);
@@ -449,6 +454,7 @@ export default function OpportunitiesPage() {
   const categoryRailDragRef = useRef<{ startX: number; scrollLeft: number } | null>(null);
   const categoryRailDidDragRef = useRef(false);
   const onboardingFiltersInitialized = useRef(false);
+  const saved = journeys.map((journey) => journey.opportunityId);
 
   useEffect(() => {
     if (profile?.themes[0]) setIntent(profile.themes[0]);
@@ -551,10 +557,6 @@ export default function OpportunitiesPage() {
     observer.observe(target);
     return () => observer.disconnect();
   }, [filtered.length, visibleCount]);
-
-  const toggleSaved = (id: number) => {
-    setSaved((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
-  };
 
   const chooseInterest = (value: string) => {
     setIntent("");
@@ -684,7 +686,7 @@ export default function OpportunitiesPage() {
               </div>
             </div>
             <div className="recommendation-grid">
-              {recommended.map((item) => <OpportunityCard key={item.id} opportunity={item} saved={saved.includes(item.id)} onSave={toggleSaved} compact />)}
+              {recommended.map((item) => <OpportunityCard key={item.id} opportunity={item} journey={journeys.find((journey) => journey.opportunityId === item.id)} onStartJourney={startJourney} onRemoveJourney={removeJourney} compact />)}
             </div>
           </> : <div className="personalization-empty"><span><Sparkles size={18} /></span><div><h3>Recomendações personalizadas</h3><p>Complete sua jornada em menos de 30 segundos para receber oportunidades selecionadas para você.</p></div><button type="button" onClick={startOnboarding}>Começar minha jornada <ArrowRight size={16} /></button></div>}
         </section>
@@ -784,7 +786,7 @@ export default function OpportunitiesPage() {
                 <motion.div layout className="feed-grid">
                   <AnimatePresence>
                     {filtered.slice(0, visibleCount).map((item) => (
-                      <OpportunityCard key={item.id} opportunity={item} saved={saved.includes(item.id)} onSave={toggleSaved} />
+                      <OpportunityCard key={item.id} opportunity={item} journey={journeys.find((journey) => journey.opportunityId === item.id)} onStartJourney={startJourney} onRemoveJourney={removeJourney} />
                     ))}
                   </AnimatePresence>
                 </motion.div>
