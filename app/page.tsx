@@ -10,17 +10,17 @@ import {
   ChevronDown,
   Clock3,
   Mail,
-  Menu,
   MessageCircle,
   Search,
   Sparkles,
   Users,
-  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import seconectaLogo from "@/assets/seconecta-logo.png";
+import { SiteHeader } from "@/components/site-header";
+import { useJourneyOnboarding } from "@/hooks/use-journey-onboarding";
 import "./landing.css";
 
 const interests = ["Olimpíadas", "Pesquisa", "Bolsas", "Programação", "Ciência", "Tecnologia"];
@@ -123,40 +123,12 @@ function TrajectorySection() {
   </section>;
 }
 
-function SimpleOnboarding({ open, close }: { open: boolean; close: () => void }) {
-  const [step, setStep] = useState(0);
-  const [selected, setSelected] = useState<string[]>([]);
-  const finish = () => { close(); window.setTimeout(() => setStep(0), 250); };
-  const toggle = (item: string) => setSelected((items) => items.includes(item) ? items.filter((value) => value !== item) : [...items, item]);
-
-  return <AnimatePresence>{open && <motion.div className="tl-modal-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => event.currentTarget === event.target && finish()}>
-    <motion.div className="tl-modal" role="dialog" aria-modal="true" aria-label="Comece sua jornada" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
-      <div className="tl-modal-head"><Brand /><span>{step + 1} de 2</span><button onClick={finish} aria-label="Fechar"><X size={19} /></button></div>
-      {step === 0 ? <div className="tl-modal-body">
-        <span className="tl-label">Vamos começar</span>
-        <h2>O que você quer descobrir?</h2>
-        <p>Escolha tudo que faz sentido para você agora.</p>
-        <div className="tl-interest-list">{interests.map((item) => <button className={selected.includes(item) ? "active" : ""} onClick={() => toggle(item)} key={item}>{selected.includes(item) && <Check size={14} />}{item}</button>)}</div>
-        <button className="tl-modal-next" disabled={!selected.length} onClick={() => setStep(1)}>Continuar <span>›</span></button>
-      </div> : <div className="tl-modal-body tl-modal-done">
-        <span className="tl-done-icon"><Check size={24} /></span>
-        <span className="tl-label">Tudo pronto</span>
-        <h2>Sua jornada começa agora.</h2>
-        <p>Vamos mostrar oportunidades de {selected.slice(0, 2).join(" e ")} para você.</p>
-        <button className="tl-modal-next" onClick={finish}>Ver oportunidades <span>›</span></button>
-      </div>}
-    </motion.div>
-  </motion.div>}</AnimatePresence>;
-}
-
 export default function LandingPage() {
-  const [open, setOpen] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState<number | null>(0);
   const [sent, setSent] = useState(false);
   const [showNewsletterCue, setShowNewsletterCue] = useState(false);
   const wheelLock = useRef(false);
-  const start = () => setOpen(true);
+  const { startOnboarding: start } = useJourneyOnboarding();
   const subscribe = (event: FormEvent) => { event.preventDefault(); setSent(true); };
 
   useEffect(() => {
@@ -259,7 +231,7 @@ export default function LandingPage() {
   }, []);
 
   return <main className="landing-page">
-    <header className="tl-header"><nav className="tl-container tl-nav"><Brand /><div className={`tl-links ${menu ? "open" : ""}`}><Link href="/explorar">Explorar</Link><Link href="/historias">Histórias</Link><Link href="/comunidade">Comunidade</Link><Link href="/sobre">Sobre</Link></div><CTA onClick={start}>Começar</CTA><button className="tl-menu" onClick={() => setMenu(!menu)} aria-label="Abrir menu">{menu ? <X /> : <Menu />}</button></nav></header>
+    <SiteHeader />
 
     <section className="tl-hero" id="inicio"><div className="tl-container tl-hero-layout">
       <div className="tl-hero-inner">
@@ -307,7 +279,7 @@ export default function LandingPage() {
       <span className="tl-section-count" aria-hidden="true">01 / 02</span>
       <Reveal className="tl-heading tl-heading-row"><div><span className="tl-label">Oportunidades em destaque</span><h2>Seu próximo passo pode estar aqui.</h2><p>Programas selecionados para estudantes que querem aprender, criar e ir além.</p></div><Link href="/explorar">Explorar todas <span>›</span></Link></Reveal>
       <div className="tl-opportunities">{opportunities.map((item) => <Reveal className="tl-opportunity" key={item.title}><div className="tl-opportunity-top"><span>{item.type}</span><button aria-label="Salvar"><Bookmark size={18} /></button></div><h3>{item.title}</h3><p>{item.org}</p><div><span><Clock3 size={15} /> Inscrições até {item.date}</span><b>›</b></div></Reveal>)}</div>
-    </div><div className="tl-deadline"><div className="tl-container tl-deadline-inner"><Link className="tl-deadline-discover" href="/explorar"><span>Descubra meu próximo passo</span><b aria-hidden="true">›</b></Link></div></div></section>
+    </div><div className="tl-deadline"><div className="tl-container tl-deadline-inner"><button className="tl-deadline-discover" type="button" onClick={start}><span>Descubra meu próximo passo</span><b aria-hidden="true">›</b></button></div></div></section>
 
     <TrajectorySection />
 
@@ -326,6 +298,5 @@ export default function LandingPage() {
     <section className="tl-final"><div className="tl-container"><Reveal><span className="tl-final-mark"><Sparkles size={20} /></span><h2>Seu próximo passo pode começar agora.</h2><p>Conte o que interessa a você e encontre oportunidades para ir mais longe.</p><CTA onClick={start} inverse /></Reveal></div></section>
 
     <footer className="tl-footer"><div className="tl-container"><div className="tl-footer-top"><div><Brand /><p>Oportunidades e conexões para acelerar jornadas educacionais.</p></div><div><a href="#oportunidades">Oportunidades</a><a href="#historias">Histórias</a><a href="#comunidade">Comunidade</a></div><div><a href="#">Sobre</a><a href="#">Equipe</a><a href="#">Privacidade</a></div></div><div className="tl-footer-bottom"><span>© 2026 seConecta</span><span>Feito para quem quer ir além.</span></div></div></footer>
-    <SimpleOnboarding open={open} close={() => setOpen(false)} />
   </main>;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Newsreader, Poppins } from "next/font/google";
+import { JourneyOnboardingProvider } from "@/components/journey-onboarding";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans" });
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${manrope.variable} ${newsreader.variable} ${poppins.variable}`}>{children}</body>
+      <body className={`${manrope.variable} ${newsreader.variable} ${poppins.variable}`}><JourneyOnboardingProvider>{children}</JourneyOnboardingProvider></body>
     </html>
   );
 }

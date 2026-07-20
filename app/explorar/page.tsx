@@ -2,22 +2,16 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertTriangle,
   ArrowRight,
   Bookmark,
   CalendarDays,
   Check,
   ChevronDown,
-  ChevronRight,
-  Clock3,
-  Flame,
+  FlaskConical,
   Gauge,
   GraduationCap,
-  Heart,
   LayoutGrid,
   MapPin,
-  Menu,
-  MessageCircle,
   Monitor,
   RotateCcw,
   Search,
@@ -25,12 +19,15 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
-  Timer,
   Users,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from "react";
+import { SiteHeader } from "@/components/site-header";
+import { useJourneyOnboarding } from "@/hooks/use-journey-onboarding";
+import type { OnboardingProfile } from "@/types/onboarding";
+import { getTaxonomyFromSearch, OPPORTUNITY_TYPES, THEMES, type OpportunityType, type Theme } from "@/types/taxonomy";
 import "./opportunities.css";
 
 type Opportunity = {
@@ -54,6 +51,20 @@ type Opportunity = {
   added: number;
   popularity: number;
   accent: "green" | "purple" | "blue" | "orange";
+};
+
+type OpportunityMetadata = {
+  applicationStatus: "open" | "endingSoon" | "openingSoon" | "evergreen" | "closed";
+  funding: "free" | "fullScholarship" | "partialScholarship";
+  educationLevels: string[];
+  themes: Theme[];
+  opportunityTypes: OpportunityType[];
+  location: "Brasil" | "Internacional";
+  duration: "upToWeek" | "oneToFourWeeks" | "oneToThreeMonths" | "overThreeMonths";
+  competition: "veryCompetitive" | "competitive" | "accessible" | "unknown";
+  language: "Português" | "Inglês" | "Espanhol" | "Outros";
+  editorialPick?: boolean;
+  openingForecast?: string;
 };
 
 const opportunities: Opportunity[] = [
@@ -257,41 +268,53 @@ const opportunities: Opportunity[] = [
   },
 ];
 
-const quickInterests = [
-  "Programação",
-  "Matemática",
-  "Ciências",
-  "Pesquisa",
-  "Bolsas",
-  "Programas de verão",
-  "Olimpíadas",
-  "Competições",
-  "Inteligência Artificial",
-  "Empreendedorismo",
-];
+const opportunityMetadata: Record<number, OpportunityMetadata> = {
+  1: { applicationStatus: "endingSoon", funding: "free", educationLevels: ["Ensino Médio"], themes: ["Inteligência Artificial", "Ciências da Computação"], opportunityTypes: ["Programa de Verão"], location: "Brasil", duration: "oneToFourWeeks", competition: "veryCompetitive", language: "Português", editorialPick: true },
+  2: { applicationStatus: "closed", funding: "free", educationLevels: ["Ensino Fundamental", "Ensino Médio"], themes: ["Matemática"], opportunityTypes: ["Olimpíada"], location: "Brasil", duration: "upToWeek", competition: "veryCompetitive", language: "Português" },
+  3: { applicationStatus: "open", funding: "free", educationLevels: ["Ensino Médio"], themes: ["Biologia"], opportunityTypes: ["Pesquisa"], location: "Brasil", duration: "oneToThreeMonths", competition: "competitive", language: "Português" },
+  4: { applicationStatus: "open", funding: "fullScholarship", educationLevels: ["Ensino Médio", "Técnico"], themes: ["Ciências da Computação", "Inteligência Artificial"], opportunityTypes: ["Bolsa"], location: "Brasil", duration: "overThreeMonths", competition: "competitive", language: "Português" },
+  5: { applicationStatus: "endingSoon", funding: "free", educationLevels: ["Ensino Médio", "Graduação"], themes: ["Meio Ambiente", "Empreendedorismo"], opportunityTypes: ["Competição"], location: "Brasil", duration: "oneToFourWeeks", competition: "competitive", language: "Português" },
+  6: { applicationStatus: "openingSoon", funding: "partialScholarship", educationLevels: ["Ensino Médio", "Graduação"], themes: ["Inteligência Artificial", "Ciências da Computação"], opportunityTypes: ["Programa de Verão"], location: "Internacional", duration: "oneToFourWeeks", competition: "veryCompetitive", language: "Inglês", openingForecast: "Inscrições previstas para agosto" },
+  7: { applicationStatus: "open", funding: "free", educationLevels: ["Ensino Médio"], themes: ["Ciências da Computação"], opportunityTypes: ["Competição"], location: "Brasil", duration: "upToWeek", competition: "veryCompetitive", language: "Português" },
+  8: { applicationStatus: "evergreen", funding: "free", educationLevels: ["Ensino Médio"], themes: ["Empreendedorismo"], opportunityTypes: ["Mentoria"], location: "Brasil", duration: "oneToThreeMonths", competition: "accessible", language: "Português" },
+  9: { applicationStatus: "open", funding: "free", educationLevels: ["Ensino Médio", "Graduação"], themes: ["Economia"], opportunityTypes: ["Mentoria", "Bolsa"], location: "Internacional", duration: "oneToThreeMonths", competition: "competitive", language: "Português" },
+};
 
-const intents = ["Olimpíadas", "Pesquisa", "Bolsas", "Programação", "Inteligência Artificial", "Outro"];
+const quickInterests = [
+  "pesquisa em IA",
+  "estudar fora",
+  "bolsas para ensino médio",
+  "olimpíadas de matemática",
+];
 
 const categoryShelves = [
-  { label: "Em destaque", icon: Flame, tone: "orange", copy: "As oportunidades que estão movimentando a comunidade." },
-  { label: "Olimpíadas", icon: Star, tone: "purple", copy: "Desafios para transformar curiosidade em conquistas." },
-  { label: "Pesquisa", icon: Sparkles, tone: "green", copy: "Seu primeiro passo para investigar grandes perguntas." },
-  { label: "Intercâmbios", icon: MapPin, tone: "blue", copy: "Experiências para ampliar seu mundo e sua rede." },
-  { label: "Tecnologia", icon: Monitor, tone: "purple", copy: "Construa projetos, produtos e novas habilidades." },
-  { label: "Bolsas", icon: GraduationCap, tone: "green", copy: "Apoio para ir mais longe sem limitar seus planos." },
-  { label: "Empreendedorismo", icon: ArrowRight, tone: "orange", copy: "Tire ideias do papel com pessoas que constroem." },
+  { label: "Pesquisa", icon: FlaskConical, tone: "green", copy: "Projetos, mentoria e primeiras descobertas." },
+  { label: "Olimpíada", icon: Star, tone: "purple", copy: "Desafios para avançar com intenção." },
+  { label: "Bolsa", icon: GraduationCap, tone: "green", copy: "Apoio para ir mais longe." },
+  { label: "Programa de Verão", icon: MapPin, tone: "blue", copy: "Experiências intensivas para ampliar horizontes." },
+  { label: "Competição", icon: ArrowRight, tone: "orange", copy: "Desafios para colocar conhecimento em prática." },
+  { label: "Evento", icon: CalendarDays, tone: "purple", copy: "Encontros para descobrir novas possibilidades." },
+  { label: "Hackathon", icon: Monitor, tone: "blue", copy: "Construa soluções com outras pessoas." },
+  { label: "Mentoria", icon: Monitor, tone: "blue", copy: "Orientação para decidir e avançar." },
+  { label: "Voluntariado", icon: Users, tone: "green", copy: "Aprenda gerando impacto na sua comunidade." },
 ];
 
-function Brand() {
-  return (
-    <Link href="/" className="explore-brand" aria-label="seConecta — página inicial">
-      <span className="explore-brand-mark" aria-hidden="true">
-        <span />
-        <span />
-      </span>
-      <span>seConecta</span>
-    </Link>
-  );
+function getOpportunityTypeScore(type: string, profile: OnboardingProfile | null) {
+  if (!profile) return 0;
+  let score = profile.opportunityTypes.includes(type as OpportunityType) ? 100 : 0;
+  const goalTypes: Record<string, string[]> = {
+    STUDY_ABROAD: ["Bolsa", "Programa de Verão", "Mentoria"],
+    OLYMPIADS: ["Olimpíada", "Competição"],
+    RESEARCH: ["Pesquisa", "Mentoria"],
+    TECHNOLOGY: ["Hackathon", "Competição", "Programa de Verão"],
+    CAREER: ["Bolsa", "Mentoria", "Voluntariado"],
+    EXPLORING: [],
+  };
+  if (goalTypes[profile.primaryGoal].includes(type)) score += 20;
+  if (type === "Olimpíada" && profile.previousExperiences.includes("OLYMPIADS")) score += 8;
+  if (type === "Pesquisa" && profile.previousExperiences.includes("RESEARCH")) score += 8;
+  if (type === "Hackathon" && profile.previousExperiences.includes("HACKATHONS")) score += 8;
+  return score;
 }
 
 function OpportunityCard({
@@ -305,6 +328,17 @@ function OpportunityCard({
   onSave: (id: number) => void;
   compact?: boolean;
 }) {
+  const metadata = opportunityMetadata[opportunity.id];
+  const fundingLabel = { free: "Gratuito", fullScholarship: "Bolsa integral", partialScholarship: "Bolsa parcial" }[metadata.funding];
+  const deadline = (() => {
+    if (metadata.applicationStatus === "openingSoon") return { label: metadata.openingForecast ?? "Abre em breve", tone: "is-opening" };
+    if (metadata.applicationStatus === "evergreen") return { label: "Inscrições abertas", tone: "is-evergreen" };
+    if (metadata.applicationStatus === "closed") return { label: "Inscrições encerradas", tone: "is-closed" };
+    if (opportunity.daysLeft === 0) return { label: "Encerra hoje", tone: "is-today" };
+    if (opportunity.daysLeft <= 7) return { label: `Fecha em ${opportunity.daysLeft} dias`, tone: "is-urgent" };
+    return { label: `Até ${opportunity.deadline}`, tone: "" };
+  })();
+
   return (
     <motion.article
       layout
@@ -313,7 +347,7 @@ function OpportunityCard({
       transition={{ duration: 0.24 }}
     >
       <div className="opportunity-card-topline">
-        <span className="opportunity-category">{opportunity.category}</span>
+        <span className="opportunity-category">{opportunityMetadata[opportunity.id].opportunityTypes[0]}</span>
         <div className="opportunity-actions">
           <button className="icon-button" type="button" aria-label={`Compartilhar ${opportunity.title}`}>
             <Share2 size={17} />
@@ -334,23 +368,23 @@ function OpportunityCard({
         <p className="opportunity-org">{opportunity.organization}</p>
         <h3>{opportunity.title}</h3>
         <p className="opportunity-description">{opportunity.description}</p>
+        {metadata.editorialPick && <span className="opportunity-context-badge">Escolha da seConecta</span>}
       </div>
 
       {!compact && (
         <div className="opportunity-meta-grid">
-          <span><Gauge size={15} /> {opportunity.difficulty}</span>
-          <span><Users size={15} /> Concorrência {opportunity.competition.toLowerCase()}</span>
-          <span><MapPin size={15} /> {opportunity.location}</span>
+          <span><MapPin size={15} /> {metadata.location === "Brasil" ? "Brasil" : "Internacional"}</span>
           <span><Monitor size={15} /> {opportunity.format}</span>
-          <span><Timer size={15} /> {opportunity.time}</span>
-          <span><GraduationCap size={15} /> {opportunity.level}</span>
+          <span><GraduationCap size={15} /> {metadata.educationLevels.join(" · ")}</span>
+          <span><Gauge size={15} /> {fundingLabel}</span>
         </div>
       )}
+      {compact && <div className="opportunity-compact-meta"><MapPin size={14} /> {metadata.location === "Brasil" ? "Brasil" : "Internacional"}<span>·</span><GraduationCap size={14} /> {metadata.educationLevels[0]}{metadata.funding !== "free" && <><span>·</span><Gauge size={14} /> {fundingLabel}</>}</div>}
 
       <div className="opportunity-card-footer">
-        <div className={`deadline-pill ${opportunity.daysLeft <= 5 ? "is-urgent" : ""}`}>
+        <div className={`deadline-pill ${deadline.tone}`}>
           <CalendarDays size={15} />
-          <span>{opportunity.daysLeft === 0 ? "Encerra hoje" : `Até ${opportunity.deadline}`}</span>
+          <span>{deadline.label}</span>
         </div>
         <button className="card-open-button" type="button" aria-label={`Ver detalhes de ${opportunity.title}`}>
           Ver oportunidade <ArrowRight size={16} />
@@ -360,27 +394,17 @@ function OpportunityCard({
   );
 }
 
-function FilterContent({
-  category,
-  setCategory,
-  onlineOnly,
-  setOnlineOnly,
-  freeOnly,
-  setFreeOnly,
-  savedOnly,
-  setSavedOnly,
-  resetFilters,
-}: {
-  category: string;
-  setCategory: (value: string) => void;
-  onlineOnly: boolean;
-  setOnlineOnly: (value: boolean) => void;
-  freeOnly: boolean;
-  setFreeOnly: (value: boolean) => void;
-  savedOnly: boolean;
-  setSavedOnly: (value: boolean) => void;
-  resetFilters: () => void;
-}) {
+function FilterGroup({ title, options, selected, onChange, initiallyOpen = false }: { title: string; options: { value: string; label: string }[]; selected: string[]; onChange: (value: string) => void; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return <section className="filter-group">
+    <button className="filter-group-toggle" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>{title}<ChevronDown size={16} /></button>
+    <AnimatePresence initial={false}>{open && <motion.div className="filter-options" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+      {options.map((option) => <label className="check-row" key={option.value}><input type="checkbox" checked={selected.includes(option.value)} onChange={() => onChange(option.value)} /><i><Check size={13} /></i>{option.label}</label>)}
+    </motion.div>}</AnimatePresence>
+  </section>;
+}
+
+function FilterContent({ formatAccess, setFormatAccess, educationLevels, setEducationLevels, themes, setThemes, opportunityTypes, setOpportunityTypes, locations, setLocations, applicationStatuses, setApplicationStatuses, durations, setDurations, competitionLevels, setCompetitionLevels, languages, setLanguages, resetFilters }: { formatAccess: string[]; setFormatAccess: (value: string) => void; educationLevels: string[]; setEducationLevels: (value: string) => void; themes: string[]; setThemes: (value: string) => void; opportunityTypes: string[]; setOpportunityTypes: (value: string) => void; locations: string[]; setLocations: (value: string) => void; applicationStatuses: string[]; setApplicationStatuses: (value: string) => void; durations: string[]; setDurations: (value: string) => void; competitionLevels: string[]; setCompetitionLevels: (value: string) => void; languages: string[]; setLanguages: (value: string) => void; resetFilters: () => void }) {
   return (
     <div className="filter-content">
       <div className="filter-heading">
@@ -388,78 +412,121 @@ function FilterContent({
         <button type="button" onClick={resetFilters}><RotateCcw size={14} /> Limpar</button>
       </div>
 
-      <label className="filter-group">
-        <span>Categoria</span>
-        <div className="select-wrap">
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="">Todas as categorias</option>
-            {[...new Set(opportunities.map((item) => item.category))].map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-          <ChevronDown size={16} />
-        </div>
-      </label>
-
-      <div className="filter-group">
-        <span>Formato e acesso</span>
-        <label className="check-row">
-          <input type="checkbox" checked={onlineOnly} onChange={(event) => setOnlineOnly(event.target.checked)} />
-          <i><Check size={13} /></i>
-          Disponível online
-        </label>
-        <label className="check-row">
-          <input type="checkbox" checked={freeOnly} onChange={(event) => setFreeOnly(event.target.checked)} />
-          <i><Check size={13} /></i>
-          Gratuito
-        </label>
-        <label className="check-row">
-          <input type="checkbox" checked={savedOnly} onChange={(event) => setSavedOnly(event.target.checked)} />
-          <i><Check size={13} /></i>
-          Somente salvas
-        </label>
-      </div>
-
-      {["Nível de ensino", "Área de interesse", "Localização", "Prazo de inscrição", "Duração", "Nível de concorrência", "Idioma"].map((label) => (
-        <button className="collapsed-filter" type="button" key={label}>
-          {label} <ChevronDown size={16} />
-        </button>
-      ))}
+      <FilterGroup title="Categorias" initiallyOpen selected={opportunityTypes} onChange={setOpportunityTypes} options={OPPORTUNITY_TYPES.map((value) => ({ value, label: value }))} />
+      <FilterGroup title="Matérias" initiallyOpen selected={themes} onChange={setThemes} options={THEMES.map((value) => ({ value, label: value }))} />
+      <FilterGroup title="Formato e acesso" initiallyOpen selected={formatAccess} onChange={setFormatAccess} options={[{ value: "Online", label: "Online" }, { value: "Presencial", label: "Presencial" }, { value: "Híbrido", label: "Híbrido" }, { value: "free", label: "Gratuito" }, { value: "fullScholarship", label: "Bolsa integral" }, { value: "partialScholarship", label: "Bolsa parcial" }]} />
+      <FilterGroup title="Nível de ensino" selected={educationLevels} onChange={setEducationLevels} options={["Ensino Fundamental", "Ensino Médio", "Técnico", "Graduação", "Pós-graduação"].map((value) => ({ value, label: value }))} />
+      <FilterGroup title="Localização" selected={locations} onChange={setLocations} options={["Brasil", "Internacional"].map((value) => ({ value, label: value }))} />
+      <FilterGroup title="Prazo de inscrição" initiallyOpen selected={applicationStatuses} onChange={setApplicationStatuses} options={[{ value: "open", label: "Abertas agora" }, { value: "endingSoon", label: "Encerrando em breve" }, { value: "openingSoon", label: "Abrem em breve" }, { value: "evergreen", label: "Sempre disponíveis" }, { value: "closed", label: "Encerradas" }]} />
+      <FilterGroup title="Duração" selected={durations} onChange={setDurations} options={[{ value: "upToWeek", label: "Até 1 semana" }, { value: "oneToFourWeeks", label: "1–4 semanas" }, { value: "oneToThreeMonths", label: "1–3 meses" }, { value: "overThreeMonths", label: "Mais de 3 meses" }]} />
+      <FilterGroup title="Nível de concorrência" selected={competitionLevels} onChange={setCompetitionLevels} options={[{ value: "veryCompetitive", label: "Muito competitivo" }, { value: "competitive", label: "Competitivo" }, { value: "accessible", label: "Acessível" }, { value: "unknown", label: "Não informado" }]} />
+      <FilterGroup title="Idioma" selected={languages} onChange={setLanguages} options={["Português", "Inglês", "Espanhol", "Outros"].map((value) => ({ value, label: value }))} />
     </div>
   );
 }
 
 export default function OpportunitiesPage() {
+  const { profile, startOnboarding } = useJourneyOnboarding();
   const [query, setQuery] = useState("");
   const [intent, setIntent] = useState("");
-  const [category, setCategory] = useState("");
   const [sort, setSort] = useState("recommended");
-  const [onlineOnly, setOnlineOnly] = useState(false);
-  const [freeOnly, setFreeOnly] = useState(false);
+  const [formatAccess, setFormatAccess] = useState<string[]>([]);
+  const [educationLevels, setEducationLevels] = useState<string[]>([]);
+  const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
+  const [selectedOpportunityTypes, setSelectedOpportunityTypes] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [applicationStatuses, setApplicationStatuses] = useState<string[]>(["open", "evergreen"]);
+  const [durations, setDurations] = useState<string[]>([]);
+  const [competitionLevels, setCompetitionLevels] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
   const [saved, setSaved] = useState<number[]>([3]);
   const [visibleCount, setVisibleCount] = useState(6);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [recommendationInfoOpen, setRecommendationInfoOpen] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const categoryRailRef = useRef<HTMLDivElement>(null);
+  const categoryRailDragRef = useRef<{ startX: number; scrollLeft: number } | null>(null);
+  const categoryRailDidDragRef = useRef(false);
+  const onboardingFiltersInitialized = useRef(false);
 
-  const normalizedIntent = intent === "Outro" ? "" : intent;
+  useEffect(() => {
+    if (profile?.themes[0]) setIntent(profile.themes[0]);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!profile || onboardingFiltersInitialized.current) return;
+    setSelectedThemes(profile.themes);
+    setSelectedOpportunityTypes(profile.opportunityTypes);
+    onboardingFiltersInitialized.current = true;
+  }, [profile]);
+
+  const toggleFilter = (setter: Dispatch<SetStateAction<string[]>>, value: string) => setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+
+  const normalizedIntent = intent === "IA" ? "Inteligência Artificial" : intent === "Outro" ? "" : intent;
+  const profileThemes = profile?.themes ?? [];
+  const orderedCategoryShelves = useMemo(() => {
+    const ranked = categoryShelves.map((category, index) => ({ ...category, index, score: getOpportunityTypeScore(category.label, profile) })).sort((a, b) => b.score - a.score || a.index - b.index);
+    return ranked;
+  }, [profile]);
+  const primaryGoal = profile?.primaryGoal;
+  const primaryGoalTerms = {
+    STUDY_ABROAD: ["intercâmbio", "portugal", "global", "internacional"],
+    OLYMPIADS: ["olimpíada", "competições", "matemática"],
+    RESEARCH: ["pesquisa", "científica", "ciências", "laboratório"],
+    TECHNOLOGY: ["tecnologia", "programação", "inteligência artificial", "ciência de dados", "hackathon"],
+    CAREER: ["bolsa", "carreira", "formação", "estágio"],
+    EXPLORING: [],
+  }[primaryGoal ?? "EXPLORING"];
+  const matchesPrimaryGoal = (item: Opportunity) => {
+    const metadata = opportunityMetadata[item.id];
+    const content = `${item.title} ${item.organization} ${item.category} ${item.area} ${item.description} ${item.location} ${metadata.themes.join(" ")} ${metadata.opportunityTypes.join(" ")}`.toLowerCase();
+    return primaryGoalTerms.some((term) => content.includes(term));
+  };
+  const matchesPersonalization = (item: Opportunity) => {
+    const metadata = opportunityMetadata[item.id];
+    return metadata.themes.some((theme) => profileThemes.includes(theme)) || metadata.opportunityTypes.some((type) => profile?.opportunityTypes.includes(type)) || metadata.themes.includes(normalizedIntent as Theme) || metadata.opportunityTypes.includes(normalizedIntent as OpportunityType);
+  };
   const recommended = useMemo(() => {
-    if (!normalizedIntent) return [opportunities[0], opportunities[2], opportunities[3]];
-    const matching = opportunities.filter((item) =>
-      `${item.category} ${item.area}`.toLowerCase().includes(normalizedIntent.toLowerCase()),
-    );
-    return [...matching, ...opportunities.filter((item) => !matching.includes(item))].slice(0, 3);
-  }, [normalizedIntent]);
+    const goalMatches = primaryGoalTerms.length ? opportunities.filter(matchesPrimaryGoal) : [];
+    const preferenceMatches = opportunities.filter(matchesPersonalization);
+    return [...goalMatches, ...preferenceMatches, ...opportunities].filter((item, index, items) => items.indexOf(item) === index).slice(0, 3);
+  }, [normalizedIntent, primaryGoal, primaryGoalTerms, profileThemes, profile?.opportunityTypes]);
+
+  const searchContext = useMemo(() => {
+    if (!query.trim()) return [];
+    const taxonomy = getTaxonomyFromSearch(query);
+    const context: string[] = [...taxonomy.themes, ...taxonomy.opportunityTypes];
+    const normalizedQuery = query.toLowerCase();
+    if (normalizedQuery.includes("fora") || normalizedQuery.includes("exterior") || normalizedQuery.includes("internacional")) context.push("Oportunidades internacionais");
+    if (normalizedQuery.includes("bolsa")) context.push("Bolsas e apoio financeiro");
+    if (normalizedQuery.includes("ensino médio")) context.push("Ensino Médio");
+    return [...new Set(context)].slice(0, 4);
+  }, [query]);
+
+  const upcoming = useMemo(() => opportunities.filter((item) => opportunityMetadata[item.id].applicationStatus === "openingSoon").slice(0, 2), []);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     const result = opportunities.filter((item) => {
-      const searchable = `${item.title} ${item.organization} ${item.category} ${item.area} ${item.description}`.toLowerCase();
+      const metadata = opportunityMetadata[item.id];
+      const searchTaxonomy = getTaxonomyFromSearch(query);
+      const hasTaxonomyQuery = searchTaxonomy.themes.length > 0 || searchTaxonomy.opportunityTypes.length > 0;
+      const searchable = `${item.title} ${item.organization} ${item.category} ${item.area} ${item.description} ${metadata.themes.join(" ")} ${metadata.opportunityTypes.join(" ")}`.toLowerCase();
+      const selectedFormats = formatAccess.filter((value) => ["Online", "Presencial", "Híbrido"].includes(value));
+      const selectedFunding = formatAccess.filter((value) => ["free", "fullScholarship", "partialScholarship"].includes(value));
       return (
-        (!term || searchable.includes(term)) &&
-        (!category || item.category === category) &&
-        (!onlineOnly || item.format === "Online" || item.format === "Híbrido") &&
-        (!freeOnly || item.fee === "Gratuito") &&
+        (!term || searchable.includes(term) || (hasTaxonomyQuery && searchTaxonomy.themes.every((theme) => metadata.themes.includes(theme)) && searchTaxonomy.opportunityTypes.every((type) => metadata.opportunityTypes.includes(type)))) &&
+        (!selectedFormats.length || selectedFormats.includes(item.format)) &&
+        (!selectedFunding.length || selectedFunding.includes(metadata.funding)) &&
+        (!educationLevels.length || educationLevels.some((level) => metadata.educationLevels.includes(level))) &&
+        (!selectedThemes.length || selectedThemes.some((theme) => metadata.themes.includes(theme as Theme))) &&
+        (!selectedOpportunityTypes.length || selectedOpportunityTypes.some((type) => metadata.opportunityTypes.includes(type as OpportunityType))) &&
+        (!locations.length || locations.includes(metadata.location)) &&
+        applicationStatuses.some((status) => status === "open" ? ["open", "endingSoon"].includes(metadata.applicationStatus) : status === metadata.applicationStatus) &&
+        (!durations.length || durations.includes(metadata.duration)) &&
+        (!competitionLevels.length || competitionLevels.includes(metadata.competition)) &&
+        (!languages.length || languages.includes(metadata.language)) &&
         (!savedOnly || saved.includes(item.id))
       );
     });
@@ -468,196 +535,197 @@ export default function OpportunitiesPage() {
       if (sort === "newest") return a.added - b.added;
       if (sort === "deadline") return a.daysLeft - b.daysLeft;
       if (sort === "popular") return b.popularity - a.popularity;
-      return (normalizedIntent && `${b.category} ${b.area}`.includes(normalizedIntent) ? 100 : b.popularity) -
-        (normalizedIntent && `${a.category} ${a.area}`.includes(normalizedIntent) ? 100 : a.popularity);
+      const score = (item: Opportunity) => item.popularity +
+        (matchesPrimaryGoal(item) ? 1000 : 0) +
+        (matchesPersonalization(item) ? 200 : 0);
+      return score(b) - score(a);
     });
-  }, [category, freeOnly, normalizedIntent, onlineOnly, query, saved, savedOnly, sort]);
+  }, [applicationStatuses, competitionLevels, durations, educationLevels, formatAccess, languages, locations, normalizedIntent, primaryGoal, primaryGoalTerms, query, saved, savedOnly, selectedOpportunityTypes, selectedThemes, sort]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || visibleCount >= filtered.length) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setVisibleCount((count) => Math.min(count + 3, filtered.length));
+    }, { rootMargin: "180px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filtered.length, visibleCount]);
 
   const toggleSaved = (id: number) => {
     setSaved((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
   const chooseInterest = (value: string) => {
-    setIntent(value);
-    setCategory(quickInterests.includes(value) && opportunities.some((item) => item.category === value) ? value : "");
+    setIntent("");
+    setQuery(value);
+    const taxonomy = getTaxonomyFromSearch(value);
+    if (taxonomy.themes.length) setSelectedThemes(taxonomy.themes);
+    if (taxonomy.opportunityTypes.length) setSelectedOpportunityTypes(taxonomy.opportunityTypes);
   };
 
+  const exploreCategory = (value: string) => {
+    if (categoryRailDidDragRef.current) return;
+    setIntent(value);
+    setSelectedOpportunityTypes([value]);
+    setQuery(value);
+    document.getElementById("all-opportunities")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const exploreRecommendedCategories = () => {
+    if (categoryRailDidDragRef.current) return;
+    setSelectedOpportunityTypes(profile?.opportunityTypes ?? []);
+    setQuery("");
+    document.getElementById("all-opportunities")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const startCategoryRailDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    categoryRailDragRef.current = { startX: event.clientX, scrollLeft: event.currentTarget.scrollLeft };
+    categoryRailDidDragRef.current = false;
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      const drag = categoryRailDragRef.current;
+      const rail = categoryRailRef.current;
+      if (!drag || !rail) return;
+      const distance = event.clientX - drag.startX;
+      if (Math.abs(distance) > 4 && !categoryRailDidDragRef.current) {
+        categoryRailDidDragRef.current = true;
+        rail.classList.add("is-dragging");
+      }
+      if (!categoryRailDidDragRef.current) return;
+      event.preventDefault();
+      rail.scrollLeft = drag.scrollLeft - distance;
+    };
+    const handleMouseUp = () => {
+      if (!categoryRailDragRef.current) return;
+      categoryRailDragRef.current = null;
+      categoryRailRef.current?.classList.remove("is-dragging");
+      if (categoryRailDidDragRef.current) window.setTimeout(() => { categoryRailDidDragRef.current = false; }, 0);
+    };
+    window.addEventListener("mousemove", handleMouseMove, { passive: false });
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
   const resetFilters = () => {
-    setCategory("");
-    setOnlineOnly(false);
-    setFreeOnly(false);
+    setFormatAccess([]);
+    setEducationLevels([]);
+    setSelectedThemes([]);
+    setSelectedOpportunityTypes([]);
+    setLocations([]);
+    setApplicationStatuses(["open", "evergreen"]);
+    setDurations([]);
+    setCompetitionLevels([]);
+    setLanguages([]);
     setSavedOnly(false);
     setQuery("");
   };
 
-  const savedOpportunities = opportunities.filter((item) => saved.includes(item.id));
-
   return (
     <main className="opportunities-page">
-      <header className="explore-header">
-        <div className="explore-shell explore-header-inner">
-          <Brand />
-          <nav className="explore-nav" aria-label="Navegação principal">
-            <Link className="is-active" href="/explorar">Explorar</Link>
-            <Link href="/prazos">Prazos</Link>
-            <button type="button" onClick={() => setSavedOnly(true)}>Minhas oportunidades</button>
-          </nav>
-          <div className="explore-header-actions">
-            <button className="header-saved" type="button" onClick={() => setSavedOnly(true)}>
-              <Bookmark size={17} /> <span>{saved.length}</span>
-            </button>
-            <button className="profile-button" type="button" aria-label="Abrir perfil">MC</button>
-            <button className="mobile-menu" type="button" onClick={() => setMobileNavOpen(!mobileNavOpen)} aria-label="Abrir menu">
-              {mobileNavOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-        </div>
-        <AnimatePresence>
-          {mobileNavOpen && (
-            <motion.nav className="mobile-nav" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-              <Link href="/explorar">Explorar</Link>
-              <Link href="/prazos">Prazos</Link>
-              <button type="button" onClick={() => setSavedOnly(true)}>Minhas oportunidades</button>
-            </motion.nav>
-          )}
-        </AnimatePresence>
-      </header>
+      <SiteHeader />
 
-      <section className="explore-hero">
-        <div className="explore-hero-glow" aria-hidden="true" />
-        <div className="explore-shell explore-hero-inner">
-          <motion.div initial={false} animate={{ opacity: 1, y: 0 }}>
-            <span className="eyebrow"><Sparkles size={15} /> Seu próximo passo começa aqui</span>
-            <h1>O que você quer fazer <em>a seguir?</em></h1>
-            <p>Encontre oportunidades que combinam com seus interesses, seu momento e seus planos.</p>
-          </motion.div>
+      <div className="explore-page-nav-wrap">
+        <nav className="explore-shell explore-page-nav" aria-label="Navegação de oportunidades">
+          <Link className="is-active" href="/explorar">Explorar</Link>
+          <Link href="/prazos">Prazos</Link>
+          <button type="button" onClick={() => setSavedOnly(true)}>Minhas oportunidades{saved.length > 0 && <span>{saved.length}</span>}</button>
+        </nav>
+      </div>
 
-          <motion.div className="hero-search-wrap" initial={false} animate={{ opacity: 1, scale: 1 }}>
-            <Search size={23} />
+      <section className="workspace-search" aria-labelledby="workspace-search-title">
+        <div className="explore-shell workspace-search-inner">
+          <h1 id="workspace-search-title">Encontre sua próxima oportunidade.</h1>
+          <div className="workspace-search-input">
+            <Search size={21} />
             <label htmlFor="opportunity-search" className="sr-only">Pesquisar oportunidades</label>
-            <input
-              id="opportunity-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Ex.: OBMEP, IA, bolsas, pesquisa..."
-              autoComplete="off"
-            />
+            <input id="opportunity-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquise por pesquisa científica, IA, bolsas..." autoComplete="off" />
             {query && <button type="button" onClick={() => setQuery("")} aria-label="Limpar pesquisa"><X size={18} /></button>}
             <span className="search-shortcut">⌘ K</span>
-          </motion.div>
-
-          <div className="quick-filters" aria-label="Interesses rápidos">
-            {quickInterests.map((item) => (
-              <button type="button" className={intent === item ? "is-active" : ""} onClick={() => chooseInterest(item)} key={item}>
-                {item}
-              </button>
-            ))}
           </div>
+          <div className="quick-filters" aria-label="Tópicos populares">
+            <span>Experimente:</span>
+            {quickInterests.map((item) => <button type="button" className={intent === item ? "is-active" : ""} onClick={() => chooseInterest(item)} key={item}>{item}</button>)}
+          </div>
+          <AnimatePresence initial={false}>{query.trim() && <motion.div className="search-context" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+            <span>Pesquisando por: <strong>“{query}”</strong></span>
+            {searchContext.length > 0 && <span>Considerando: {searchContext.join(" · ")}</span>}
+          </motion.div>}</AnimatePresence>
         </div>
       </section>
 
       <div className="explore-shell explore-content">
-        <AnimatePresence mode="wait">
-          {!intent ? (
-            <motion.section className="intent-card" key="question" initial={false} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div>
-                <span className="section-kicker">Só uma pergunta</span>
-                <h2>O que você procura hoje?</h2>
-                <p>Uma escolha basta para começar. Você pode mudar quando quiser.</p>
-              </div>
-              <div className="intent-options">
-                {intents.map((item) => (
-                  <button type="button" onClick={() => chooseInterest(item)} key={item}>
-                    {item} <ChevronRight size={16} />
-                  </button>
-                ))}
-              </div>
-            </motion.section>
-          ) : (
-            <motion.div className="personalized-notice" key="personalized" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <span><Check size={16} /> Sua página está personalizada para <strong>{intent}</strong>.</span>
-              <button type="button" onClick={() => setIntent("")}>Alterar interesse</button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <section className="recommendation-section section-block" aria-labelledby="recommended-title">
           <div className="section-heading">
             <div>
-              <span className="section-kicker"><Sparkles size={14} /> Escolhas para o seu momento</span>
               <h2 id="recommended-title">Recomendado para você</h2>
+              <p>Baseado nos seus interesses e na sua jornada educacional.</p>
             </div>
             <button className="text-link" type="button" onClick={() => document.getElementById("all-opportunities")?.scrollIntoView({ behavior: "smooth" })}>
               Ver todas <ArrowRight size={16} />
             </button>
           </div>
-
-          <div className="recommendation-grid">
-            {recommended.map((item, index) => (
-              <div className="recommendation-wrap" key={item.id}>
-                <div className="recommendation-reason">
-                  {index === 0 && intent ? <><Sparkles size={14} /> Porque você escolheu {intent}.</> : null}
-                  {index === 0 && !intent ? <><Star size={14} /> Popular entre estudantes de tecnologia.</> : null}
-                  {index === 1 ? <><Flame size={14} /> Prazo termina em {item.daysLeft || "menos de um"} {item.daysLeft === 1 ? "dia" : "dias"}.</> : null}
-                  {index === 2 ? <><Users size={14} /> Estudantes com interesses parecidos salvaram.</> : null}
-                </div>
-                <OpportunityCard opportunity={item} saved={saved.includes(item.id)} onSave={toggleSaved} compact />
+          {profile ? <>
+            <div className="recommendation-context">
+              <div className="recommendation-info-wrap">
+                <button type="button" onClick={() => setRecommendationInfoOpen((open) => !open)} aria-expanded={recommendationInfoOpen}>Como funciona?</button>
+                <AnimatePresence initial={false}>{recommendationInfoOpen && <motion.div className="recommendation-info-popover" initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                  <strong>Como selecionamos essas oportunidades</strong>
+                  <p>Consideramos seus interesses, objetivos atuais, momento acadêmico, prazos e a relevância de cada oportunidade.</p>
+                  <span>As recomendações melhoram conforme você utiliza a plataforma.</span>
+                  <button type="button" onClick={startOnboarding}>Atualizar preferências</button>
+                </motion.div>}</AnimatePresence>
               </div>
-            ))}
-          </div>
+            </div>
+            <div className="recommendation-grid">
+              {recommended.map((item) => <OpportunityCard key={item.id} opportunity={item} saved={saved.includes(item.id)} onSave={toggleSaved} compact />)}
+            </div>
+          </> : <div className="personalization-empty"><span><Sparkles size={18} /></span><div><h3>Recomendações personalizadas</h3><p>Complete sua jornada em menos de 30 segundos para receber oportunidades selecionadas para você.</p></div><button type="button" onClick={startOnboarding}>Começar minha jornada <ArrowRight size={16} /></button></div>}
         </section>
 
         <section className="section-block category-section" aria-labelledby="categories-title">
           <div className="section-heading">
             <div>
-              <span className="section-kicker">Explore no seu ritmo</span>
-              <h2 id="categories-title">Caminhos que podem combinar com você</h2>
+              <h2 id="categories-title">Explore por tipo de oportunidade</h2>
             </div>
             <span className="drag-hint">Arraste para explorar <ArrowRight size={15} /></span>
           </div>
-          <div className="category-rail">
-            {categoryShelves.map(({ label, icon: Icon, tone, copy }) => (
+          <div className="category-rail" ref={categoryRailRef} onMouseDown={startCategoryRailDrag}>
+            <motion.button type="button" className="category-card category-card--recommended" onClick={exploreRecommendedCategories} whileHover={{ y: -4 }}>
+              <span className="category-icon"><Sparkles size={20} /></span>
+              <span className="category-count">Seleção personalizada</span>
+              <strong>Recomendadas</strong>
+              <small>{profile ? "Tipos que combinam com sua jornada." : "Uma seleção para começar a explorar."}</small>
+              <span className="category-arrow"><ArrowRight size={17} /></span>
+            </motion.button>
+            {orderedCategoryShelves.map(({ label, icon: Icon, tone, copy }) => (
               <motion.button
                 type="button"
                 className={`category-card category-card--${tone}`}
                 key={label}
-                onClick={() => chooseInterest(label === "Em destaque" ? "Outro" : label)}
+                onClick={() => exploreCategory(label)}
                 whileHover={{ y: -4 }}
               >
                 <span className="category-icon"><Icon size={20} /></span>
-                <span className="category-count">{label === "Em destaque" ? "Seleção da semana" : `${opportunities.filter((item) => `${item.category} ${item.area}`.includes(label)).length || 12}+ oportunidades`}</span>
+                <span className="category-count">{opportunities.filter((item) => opportunityMetadata[item.id].opportunityTypes.includes(label as OpportunityType)).length || 12}+ oportunidades</span>
                 <strong>{label}</strong>
                 <small>{copy}</small>
                 <span className="category-arrow"><ArrowRight size={17} /></span>
               </motion.button>
             ))}
-          </div>
-        </section>
-
-        <section className="section-block deadline-section" aria-labelledby="deadline-title">
-          <div className="section-heading">
-            <div>
-              <span className="section-kicker"><Clock3 size={14} /> Para agir no momento certo</span>
-              <h2 id="deadline-title">Prazos que merecem sua atenção</h2>
-            </div>
-            <Link className="text-link" href="/prazos">Ver todos os prazos <ArrowRight size={16} /></Link>
-          </div>
-          <div className="deadline-grid">
-            {[
-              { label: "Encerra hoje", icon: Flame, item: opportunities.find((op) => op.deadlineGroup === "Hoje")!, tone: "red" },
-              { label: "Esta semana", icon: AlertTriangle, item: opportunities.find((op) => op.deadlineGroup === "Esta semana")!, tone: "yellow" },
-              { label: "Este mês", icon: CalendarDays, item: opportunities.find((op) => op.deadlineGroup === "Este mês")!, tone: "green" },
-            ].map(({ label, icon: Icon, item, tone }) => (
-              <button type="button" className={`deadline-highlight deadline-highlight--${tone}`} key={label}>
-                <span className="deadline-highlight-icon"><Icon size={18} /></span>
-                <span>
-                  <small>{label}</small>
-                  <strong>{item.title}</strong>
-                  <em>{item.deadline} · {item.organization}</em>
-                </span>
-                <ChevronRight size={18} />
-              </button>
-            ))}
+            <motion.button type="button" className="category-card category-card--all" onClick={() => { setSelectedOpportunityTypes([]); setQuery(""); document.getElementById("all-opportunities")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} whileHover={{ y: -4 }}>
+              <span className="category-icon"><LayoutGrid size={20} /></span>
+              <span className="category-count">Explorar sem filtro</span>
+              <strong>Todas</strong>
+              <small>Veja todos os tipos de oportunidade.</small>
+              <span className="category-arrow"><ArrowRight size={17} /></span>
+            </motion.button>
           </div>
         </section>
 
@@ -665,7 +733,7 @@ export default function OpportunitiesPage() {
           <div className="section-heading feed-heading">
             <div>
               <span className="section-kicker">Todas as oportunidades</span>
-              <h2 id="feed-title">Continue explorando</h2>
+              <h2 id="feed-title">Encontre o que procura</h2>
               <p>{filtered.length} oportunidades encontradas para você.</p>
             </div>
             <div className="feed-controls">
@@ -689,14 +757,24 @@ export default function OpportunitiesPage() {
           <div className="feed-layout">
             <aside className="desktop-filters" aria-label="Filtros de oportunidades">
               <FilterContent
-                category={category}
-                setCategory={setCategory}
-                onlineOnly={onlineOnly}
-                setOnlineOnly={setOnlineOnly}
-                freeOnly={freeOnly}
-                setFreeOnly={setFreeOnly}
-                savedOnly={savedOnly}
-                setSavedOnly={setSavedOnly}
+                formatAccess={formatAccess}
+                setFormatAccess={(value) => toggleFilter(setFormatAccess, value)}
+                educationLevels={educationLevels}
+                setEducationLevels={(value) => toggleFilter(setEducationLevels, value)}
+                themes={selectedThemes}
+                setThemes={(value) => toggleFilter(setSelectedThemes, value)}
+                opportunityTypes={selectedOpportunityTypes}
+                setOpportunityTypes={(value) => toggleFilter(setSelectedOpportunityTypes, value)}
+                locations={locations}
+                setLocations={(value) => toggleFilter(setLocations, value)}
+                applicationStatuses={applicationStatuses}
+                setApplicationStatuses={(value) => toggleFilter(setApplicationStatuses, value)}
+                durations={durations}
+                setDurations={(value) => toggleFilter(setDurations, value)}
+                competitionLevels={competitionLevels}
+                setCompetitionLevels={(value) => toggleFilter(setCompetitionLevels, value)}
+                languages={languages}
+                setLanguages={(value) => toggleFilter(setLanguages, value)}
                 resetFilters={resetFilters}
               />
             </aside>
@@ -717,82 +795,19 @@ export default function OpportunitiesPage() {
                   <p>Tente ampliar sua busca ou deixe a seConecta encontrar opções parecidas para você.</p>
                   <div>
                     <button type="button" onClick={resetFilters}>Limpar filtros</button>
-                    <a href="#whatsapp-personalization"><MessageCircle size={16} /> Receber sugestões</a>
+                    <button type="button" onClick={startOnboarding}>Personalizar recomendações</button>
                   </div>
                 </div>
               )}
-              {visibleCount < filtered.length && (
-                <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 3)}>
-                  Mostrar mais oportunidades <ChevronDown size={17} />
-                </button>
-              )}
+              {visibleCount < filtered.length && <div className="opportunity-sentinel" ref={loadMoreRef}>Carregando mais oportunidades...</div>}
             </div>
-          </div>
-        </section>
-
-        <section className="section-block saved-section" aria-labelledby="saved-title">
-          <div className="section-heading">
-            <div>
-              <span className="section-kicker"><Bookmark size={14} /> Seu caminho</span>
-              <h2 id="saved-title">Minhas oportunidades</h2>
-            </div>
-            <div className="saved-tabs" role="tablist" aria-label="Status das oportunidades">
-              <button className="is-active" type="button" role="tab">Salvas <span>{saved.length}</span></button>
-              <button type="button" role="tab">Tenho interesse</button>
-              <button type="button" role="tab">Inscrições</button>
-              <button type="button" role="tab">Concluídas</button>
-            </div>
-          </div>
-          {savedOpportunities.length ? (
-            <div className="saved-list">
-              {savedOpportunities.slice(0, 3).map((item) => (
-                <div className="saved-row" key={item.id}>
-                  <span className={`saved-row-mark saved-row-mark--${item.accent}`}><Bookmark size={17} fill="currentColor" /></span>
-                  <span><small>{item.organization}</small><strong>{item.title}</strong></span>
-                  <span className="saved-row-deadline"><Clock3 size={15} /> {item.daysLeft === 0 ? "Hoje" : `${item.daysLeft} dias`}</span>
-                  <button type="button">Continuar <ArrowRight size={15} /></button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="saved-empty"><Heart size={20} /><span><strong>Seu próximo passo pode começar com um favorito.</strong> Salve oportunidades para acompanhar prazos e decidir com calma.</span></div>
-          )}
-        </section>
-
-        <section className="whatsapp-cta" id="whatsapp-personalization">
-          <div className="whatsapp-orbit" aria-hidden="true"><span /><span /><span /></div>
-          <div className="whatsapp-copy">
-            <span className="whatsapp-kicker"><MessageCircle size={15} /> No WhatsApp, do seu jeito</span>
-            <h2>Quer receber oportunidades como essas automaticamente?</h2>
-            <p>A seConecta seleciona o que combina com você e avisa antes que o prazo termine.</p>
-            <ul>
-              <li><Check size={15} /> Recomendações personalizadas</li>
-              <li><Check size={15} /> Lembretes de prazos</li>
-              <li><Check size={15} /> Um resumo por semana</li>
-            </ul>
-            <button type="button">Quero receber no WhatsApp <ArrowRight size={17} /></button>
-            <small>Gratuito. Sem mensagens desnecessárias.</small>
-          </div>
-          <div className="whatsapp-preview" aria-label="Exemplo de recomendação no WhatsApp">
-            <div className="whatsapp-preview-header">
-              <span className="wa-logo">se</span>
-              <span><strong>seConecta</strong><small>online</small></span>
-            </div>
-            <div className="wa-message">
-              <span className="wa-spark"><Sparkles size={15} /></span>
-              <p>Encontrei uma oportunidade que combina com seu interesse em IA:</p>
-              <strong>Programa de Verão em Inteligência Artificial</strong>
-              <small>Inscrições até 21 de julho</small>
-              <button type="button">Ver oportunidade</button>
-            </div>
-            <div className="wa-time">Agora</div>
           </div>
         </section>
       </div>
 
       <footer className="explore-footer">
         <div className="explore-shell">
-          <Brand />
+          <Link href="/" className="site-brand" aria-label="seConecta, página inicial"><span>se</span>Conecta<i /></Link>
           <p>Oportunidades certas. No momento certo.</p>
           <div><Link href="/sobre">Sobre</Link><Link href="/privacidade">Privacidade</Link><Link href="/">Voltar ao início</Link></div>
         </div>
@@ -806,14 +821,24 @@ export default function OpportunitiesPage() {
               <div className="sheet-handle" />
               <div className="sheet-title"><strong>Refinar oportunidades</strong><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Fechar"><X size={20} /></button></div>
               <FilterContent
-                category={category}
-                setCategory={setCategory}
-                onlineOnly={onlineOnly}
-                setOnlineOnly={setOnlineOnly}
-                freeOnly={freeOnly}
-                setFreeOnly={setFreeOnly}
-                savedOnly={savedOnly}
-                setSavedOnly={setSavedOnly}
+                formatAccess={formatAccess}
+                setFormatAccess={(value) => toggleFilter(setFormatAccess, value)}
+                educationLevels={educationLevels}
+                setEducationLevels={(value) => toggleFilter(setEducationLevels, value)}
+                themes={selectedThemes}
+                setThemes={(value) => toggleFilter(setSelectedThemes, value)}
+                opportunityTypes={selectedOpportunityTypes}
+                setOpportunityTypes={(value) => toggleFilter(setSelectedOpportunityTypes, value)}
+                locations={locations}
+                setLocations={(value) => toggleFilter(setLocations, value)}
+                applicationStatuses={applicationStatuses}
+                setApplicationStatuses={(value) => toggleFilter(setApplicationStatuses, value)}
+                durations={durations}
+                setDurations={(value) => toggleFilter(setDurations, value)}
+                competitionLevels={competitionLevels}
+                setCompetitionLevels={(value) => toggleFilter(setCompetitionLevels, value)}
+                languages={languages}
+                setLanguages={(value) => toggleFilter(setLanguages, value)}
                 resetFilters={resetFilters}
               />
               <button className="apply-filters" type="button" onClick={() => setFiltersOpen(false)}>Ver {filtered.length} oportunidades</button>
