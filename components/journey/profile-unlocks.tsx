@@ -5,6 +5,7 @@ import { ArrowRight, BellRing, Camera, Check, ChevronDown, Clock3, Globe2, Gradu
 import { useMemo, useState } from "react";
 import type { JourneyProfileExtension, LanguageProficiency, ProfileStepId } from "@/types/journey-profile";
 import type { OnboardingProfile } from "@/types/onboarding";
+import { useAuthentication } from "@/components/auth/authentication-provider";
 
 const STORAGE_KEY = "seconecta:journey-profile-extension";
 
@@ -47,10 +48,10 @@ const futurePlanOptions = ["Universidade no Brasil", "Universidade no exterior",
 const languageOptions = ["Português", "Inglês", "Espanhol", "Francês", "Outro"];
 const proficiencies: LanguageProficiency[] = ["Básico", "Intermediário", "Avançado", "Fluente"];
 
-function knownStepIds(profile: OnboardingProfile | null, extension: JourneyProfileExtension) {
+function knownStepIds(profile: OnboardingProfile | null, extension: JourneyProfileExtension, whatsappConnected: boolean) {
   const known = new Set<ProfileStepId>(extension.skippedSteps ?? []);
   if (extension.firstName) known.add("name");
-  if (extension.notificationChannel || profile?.preferredChannel) known.add("notifications");
+  if (extension.notificationChannel || profile?.preferredChannel || whatsappConnected) known.add("notifications");
   if (extension.city || extension.country) known.add("location");
   if (extension.institution) known.add("school");
   if (extension.gradeOrGraduation) known.add("grade");
@@ -68,6 +69,7 @@ function StepShell({ step, onClose, children }: { step: StepDefinition; onClose:
 }
 
 export function ProfileUnlocks({ profile, value, onChange }: { profile: OnboardingProfile | null; value: JourneyProfileExtension; onChange: (value: JourneyProfileExtension) => void }) {
+  const { session } = useAuthentication();
   const [activeStep, setActiveStep] = useState<ProfileStepId | null>(null);
   const [reward, setReward] = useState<string | null>(null);
   const [firstName, setFirstName] = useState(value.firstName ?? "");
@@ -82,7 +84,8 @@ export function ProfileUnlocks({ profile, value, onChange }: { profile: Onboardi
   const [futurePlans, setFuturePlans] = useState<string[]>(value.futurePlans ?? []);
   const [motivation, setMotivation] = useState(value.motivation ?? "");
 
-  const known = useMemo(() => knownStepIds(profile, value), [profile, value]);
+  const whatsappConnected = session.connectedAccounts.whatsapp.connected;
+  const known = useMemo(() => knownStepIds(profile, value, whatsappConnected), [profile, value, whatsappConnected]);
   const remaining = steps.filter((step) => !known.has(step.id));
   const nextStep = remaining[0];
   const completedCount = steps.length - remaining.length;
@@ -103,7 +106,7 @@ export function ProfileUnlocks({ profile, value, onChange }: { profile: Onboardi
   const activeDefinition = steps.find((step) => step.id === activeStep);
   const inputClass = "h-11 w-full rounded-[13px] border border-[#d6e0db] bg-[#f9fbfa] px-3 text-[11px] text-[#29493c] outline-none transition focus:border-[#079272] focus:ring-2 focus:ring-[#079272]/10";
 
-  return <div className="border-b border-[#dbe3df] bg-[#f2f7f4]"><div className="mx-auto w-[min(1180px,calc(100%-40px))] py-4"><section className="rounded-[20px] border border-[#d5e2dc] bg-white px-5 py-4 shadow-[0_8px_24px_rgba(28,54,43,.04)]"><div className="flex flex-col gap-5 lg:flex-row lg:items-center"><div className="flex min-w-0 flex-1 items-start gap-4"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[14px] bg-[#e9f7f1] text-[#078166]">{value.profilePictureDataUrl ? <img src={value.profilePictureDataUrl} alt="Sua foto de perfil" className="size-full object-cover" /> : <UserRound size={18} />}</span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[15px] font-semibold tracking-[-.025em] text-[#17372b]">Bem-vindo{value.preferredName || value.firstName ? `, ${value.preferredName || value.firstName}` : ""}!</h2><span className="rounded-full bg-[#edf7f3] px-2.5 py-1 text-[8px] font-semibold text-[#078166]">Perfil {percentage}% completo</span></div><p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#68756f]">Quanto mais conhecemos seus objetivos, melhores ficam as recomendações, orientações e notificações.</p></div></div><div className="min-w-0 lg:w-[260px]"><div className="flex items-center justify-between text-[8px] font-semibold text-[#748079]"><span>Faltam {remaining.length} {remaining.length === 1 ? "etapa" : "etapas"}</span><span>{completedCount}/{steps.length}</span></div><div className="mt-2 grid grid-cols-10 gap-1">{steps.map((step) => <i className={`h-1.5 rounded-full ${known.has(step.id) ? "bg-[#079272]" : "bg-[#dce4e0]"}`} key={step.id} />)}</div><p className="mt-2 truncate text-[8px] text-[#7c8882]">Próximo desbloqueio: <strong className="text-[#456156]">{nextStep.benefit}</strong></p></div><button type="button" onClick={() => setActiveStep(activeStep ? null : nextStep.id)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#079272] px-5 text-[10px] font-semibold shadow-[0_8px_20px_rgba(7,146,114,.14)]" style={{ color: "#fff" }}>Completar uma etapa <ArrowRight size={13} /></button></div></section>
+  return <div className="border-b border-[#dbe3df] bg-[#f2f7f4]"><div className="mx-auto w-[min(1180px,calc(100%-40px))] py-4"><section className="rounded-[20px] border border-[#d5e2dc] bg-white px-5 py-4 shadow-[0_8px_24px_rgba(28,54,43,.04)]"><div className="flex flex-col gap-5 lg:flex-row lg:items-center"><div className="flex min-w-0 flex-1 items-start gap-4"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[14px] bg-[#e9f7f1] text-[#078166]">{value.profilePictureDataUrl ? <img src={value.profilePictureDataUrl} alt="Sua foto de perfil" className="size-full object-cover" /> : <UserRound size={18} />}</span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[15px] font-semibold tracking-[-.025em] text-[#17372b]">Bem-vindo{value.preferredName || value.firstName ? `, ${value.preferredName || value.firstName}` : ""}!</h2><span className="rounded-full bg-[#edf7f3] px-2.5 py-1 text-[8px] font-semibold text-[#078166]">Perfil {percentage}% completo</span>{whatsappConnected && <span className="inline-flex items-center gap-1 text-[8px] font-semibold text-[#078166]"><Check size={10} />WhatsApp conectado</span>}</div><p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#68756f]">Quanto mais conhecemos seus objetivos, melhores ficam as recomendações, orientações e notificações.</p></div></div><div className="min-w-0 lg:w-[260px]"><div className="flex items-center justify-between text-[8px] font-semibold text-[#748079]"><span>Faltam {remaining.length} {remaining.length === 1 ? "etapa" : "etapas"}</span><span>{completedCount}/{steps.length}</span></div><div className="mt-2 grid grid-cols-10 gap-1">{steps.map((step) => <i className={`h-1.5 rounded-full ${known.has(step.id) ? "bg-[#079272]" : "bg-[#dce4e0]"}`} key={step.id} />)}</div><p className="mt-2 truncate text-[8px] text-[#7c8882]">Próximo desbloqueio: <strong className="text-[#456156]">{nextStep.benefit}</strong></p></div><button type="button" onClick={() => setActiveStep(activeStep ? null : nextStep.id)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#079272] px-5 text-[10px] font-semibold shadow-[0_8px_20px_rgba(7,146,114,.14)]" style={{ color: "#fff" }}>Completar uma etapa <ArrowRight size={13} /></button></div></section>
 
     <AnimatePresence>{reward && <motion.div role="status" className="mt-3 flex items-center gap-2 rounded-[14px] border border-[#cce3d8] bg-[#eaf7f1] px-4 py-3 text-[10px] font-semibold text-[#08745d]" initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><Check size={14} />{reward}</motion.div>}</AnimatePresence>
 
