@@ -115,6 +115,8 @@ export type JourneyPlan = {
   mission: JourneyMission;
   globalProgress: JourneyGlobalProgress;
   priorities: JourneyPriority[];
+  /** Opportunities intentionally kept for later, outside the active application workload. */
+  observing: JourneyPriority[];
   projects: JourneyPriority[];
   accomplishments: JourneyPriority[];
   dailyActions: JourneyDailyAction[];

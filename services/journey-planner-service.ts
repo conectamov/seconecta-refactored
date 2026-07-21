@@ -207,10 +207,11 @@ export function createJourneyPlan(journeys: OpportunityJourney[], profile: Onboa
     return { ...item, reason: priorityReason(item), nextAction: action.label, actionEstimate: action.estimate, health: health.id, healthLabel: health.label, progress: opportunityProgress(item), community: communitySignal(item), latestUpdate: latestOpportunityUpdate(item) };
   };
   const enrichedItems = items.map(enrich);
-  const projects = enrichedItems.filter((item) => !["accepted", "rejected", "completed", "archived"].includes(item.relationship.stage)).sort((a, b) => priorityScore(b) - priorityScore(a));
+  const observing = enrichedItems.filter((item) => item.relationship.stage === "watching").sort((a, b) => b.relationship.updatedAt.localeCompare(a.relationship.updatedAt));
+  const projects = enrichedItems.filter((item) => !["watching", "accepted", "rejected", "completed", "archived"].includes(item.relationship.stage)).sort((a, b) => priorityScore(b) - priorityScore(a));
   const accomplishments = enrichedItems.filter((item) => ["accepted", "rejected", "completed", "archived"].includes(item.relationship.stage)).sort((a, b) => b.relationship.updatedAt.localeCompare(a.relationship.updatedAt));
-  const priorities = projects.filter((item) => item.relationship.stage !== "watching").slice(0, 3);
-  const dailyActions = createDailyActions(priorities.length > 0 ? priorities : projects);
+  const priorities = projects.slice(0, 3);
+  const dailyActions = createDailyActions(priorities);
   const watchingCount = items.filter((item) => item.relationship.stage === "watching").length;
   const preparingCount = items.filter((item) => item.relationship.stage === "preparing").length;
   const profileTheme = profile?.themes[0];
@@ -230,6 +231,7 @@ export function createJourneyPlan(journeys: OpportunityJourney[], profile: Onboa
     mission: createMission(priorities.length > 0 ? priorities : projects),
     globalProgress: createGlobalProgress(items, projects),
     priorities,
+    observing,
     projects,
     accomplishments,
     dailyActions,

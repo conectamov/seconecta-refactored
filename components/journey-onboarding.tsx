@@ -12,6 +12,7 @@ import "./journey-onboarding.css";
 type JourneyOnboardingContextValue = {
   profile: OnboardingProfile | null;
   startOnboarding: () => void;
+  updateProfile: (profile: OnboardingProfile) => void;
 };
 
 export const JourneyOnboardingContext = createContext<JourneyOnboardingContextValue | null>(null);
@@ -127,7 +128,12 @@ export function JourneyOnboardingProvider({ children }: { children: React.ReactN
 
   useEffect(() => setProfile(onboardingService.load()), []);
 
-  return <JourneyOnboardingContext.Provider value={{ profile, startOnboarding: () => setIsOpen(true) }}>
+  const updateProfile = (nextProfile: OnboardingProfile) => {
+    onboardingService.save(nextProfile);
+    setProfile(nextProfile);
+  };
+
+  return <JourneyOnboardingContext.Provider value={{ profile, startOnboarding: () => setIsOpen(true), updateProfile }}>
     {children}
     <JourneyOnboarding open={isOpen} onClose={() => setIsOpen(false)} onComplete={setProfile} />
   </JourneyOnboardingContext.Provider>;

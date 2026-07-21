@@ -34,6 +34,7 @@ type OpportunityJourneyContextValue = {
   updateJourneyStage: (opportunityId: number, stage: JourneyStage) => void;
   removeJourney: (opportunityId: number) => void;
   requestRecommendationFeedback: (opportunity: JourneyOpportunityRef) => void;
+  updateRecommendationFeedback: (opportunityId: number, score: RecommendationFeedbackScore) => void;
 };
 
 const OpportunityJourneyContext = createContext<OpportunityJourneyContextValue | null>(null);
@@ -134,6 +135,10 @@ export function OpportunityJourneyProvider({ children }: { children: React.React
       setToast("Removido da sua jornada.");
     },
     requestRecommendationFeedback: queueFeedback,
+    updateRecommendationFeedback: (opportunityId, score) => {
+      setRecommendationFeedback((current) => [...current.filter((item) => item.opportunityId !== opportunityId), createRecommendationFeedback(opportunityId, score)]);
+      setToast("Preferência atualizada. Suas próximas recomendações vão considerar isso.");
+    },
   }), [isAuthenticated, journeys, recommendationFeedback, openAuthentication]);
 
   const addJourneyFromFlow = (journey: OpportunityJourney) => {
