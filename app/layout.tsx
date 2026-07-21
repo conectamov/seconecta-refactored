@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Newsreader, Poppins } from "next/font/google";
 import { JourneyOnboardingProvider } from "@/components/journey-onboarding";
+import { AuthenticationProvider } from "@/components/auth/authentication-provider";
 import { OpportunityJourneyProvider } from "@/components/opportunity-journey-provider";
 import "./globals.css";
 
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${manrope.variable} ${newsreader.variable} ${poppins.variable}`}><JourneyOnboardingProvider><OpportunityJourneyProvider>{children}</OpportunityJourneyProvider></JourneyOnboardingProvider></body>
+      <body className={`${manrope.variable} ${newsreader.variable} ${poppins.variable}`}><AuthenticationProvider><JourneyOnboardingProvider><OpportunityJourneyProvider>{children}</OpportunityJourneyProvider></JourneyOnboardingProvider></AuthenticationProvider></body>
     </html>
   );
 }

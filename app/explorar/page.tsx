@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from "react";
 import { SiteHeader } from "@/components/site-header";
+import { OpportunityWorkspaceNav } from "@/components/opportunity-workspace-nav";
 import { useOpportunityJourney } from "@/components/opportunity-journey-provider";
 import { useJourneyOnboarding } from "@/hooks/use-journey-onboarding";
 import type { OnboardingProfile } from "@/types/onboarding";
@@ -445,7 +446,6 @@ export default function OpportunitiesPage() {
   const [durations, setDurations] = useState<string[]>([]);
   const [competitionLevels, setCompetitionLevels] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
-  const [savedOnly, setSavedOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [recommendationInfoOpen, setRecommendationInfoOpen] = useState(false);
@@ -532,8 +532,7 @@ export default function OpportunitiesPage() {
         applicationStatuses.some((status) => status === "open" ? ["open", "endingSoon"].includes(metadata.applicationStatus) : status === metadata.applicationStatus) &&
         (!durations.length || durations.includes(metadata.duration)) &&
         (!competitionLevels.length || competitionLevels.includes(metadata.competition)) &&
-        (!languages.length || languages.includes(metadata.language)) &&
-        (!savedOnly || saved.includes(item.id))
+        (!languages.length || languages.includes(metadata.language))
       );
     });
 
@@ -546,7 +545,7 @@ export default function OpportunitiesPage() {
         (matchesPersonalization(item) ? 200 : 0);
       return score(b) - score(a);
     });
-  }, [applicationStatuses, competitionLevels, durations, educationLevels, formatAccess, languages, locations, normalizedIntent, primaryGoal, primaryGoalTerms, query, saved, savedOnly, selectedOpportunityTypes, selectedThemes, sort]);
+  }, [applicationStatuses, competitionLevels, durations, educationLevels, formatAccess, languages, locations, normalizedIntent, primaryGoal, primaryGoalTerms, query, selectedOpportunityTypes, selectedThemes, sort]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -625,7 +624,6 @@ export default function OpportunitiesPage() {
     setDurations([]);
     setCompetitionLevels([]);
     setLanguages([]);
-    setSavedOnly(false);
     setQuery("");
   };
 
@@ -633,13 +631,7 @@ export default function OpportunitiesPage() {
     <main className="opportunities-page">
       <SiteHeader />
 
-      <div className="explore-page-nav-wrap">
-        <nav className="explore-shell explore-page-nav" aria-label="Navegação de oportunidades">
-          <Link className="is-active" href="/explorar">Explorar</Link>
-          <Link href="/prazos">Prazos</Link>
-          <button type="button" onClick={() => setSavedOnly(true)}>Minhas oportunidades{saved.length > 0 && <span>{saved.length}</span>}</button>
-        </nav>
-      </div>
+      <OpportunityWorkspaceNav active="explore" />
 
       <section className="workspace-search" aria-labelledby="workspace-search-title">
         <div className="explore-shell workspace-search-inner">

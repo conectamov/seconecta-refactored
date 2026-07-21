@@ -3,6 +3,9 @@ export type OpportunityDetail = {
   slug: string;
   title: string;
   organization: string;
+  officialUrl: string;
+  organizationLogo?: string;
+  coverImage?: string;
   type: string;
   location: string;
   educationLevel: string;
@@ -11,6 +14,7 @@ export type OpportunityDetail = {
   competitiveness: string;
   applicationStatus: "open" | "closed" | "upcoming";
   summary: string;
+  description: string;
   fitSummary: string;
   orientation: {
     recommendation: "prioritize" | "consider" | "deprioritize";
@@ -43,6 +47,7 @@ const primaryOpportunity: OpportunityDetail = {
   slug: "programa-de-verao-em-inteligencia-artificial",
   title: "Programa de Verão em Inteligência Artificial",
   organization: "Instituto de Computação Aplicada",
+  officialUrl: "https://institutodecomputacaoaplicada.org/programa-de-verao-em-inteligencia-artificial",
   type: "Programa de Verão",
   location: "São Paulo, SP · Híbrido",
   educationLevel: "Ensino Médio",
@@ -51,6 +56,7 @@ const primaryOpportunity: OpportunityDetail = {
   competitiveness: "Alta",
   applicationStatus: "open",
   summary: "Quatro semanas desenvolvendo um projeto de IA com pesquisadores e estudantes de todo o Brasil — com bolsa integral para participantes selecionados.",
+  description: "Durante quatro semanas, estudantes selecionados desenvolvem um projeto orientado de Inteligência Artificial em encontros híbridos com pesquisadores. O programa combina introdução técnica, acompanhamento e uma apresentação final, com apoio de transporte e alimentação para participantes bolsistas.",
   fitSummary: "Faz sentido se você quer transformar interesse em tecnologia em uma primeira experiência orientada de pesquisa.",
   orientation: {
     recommendation: "prioritize",
@@ -137,16 +143,16 @@ const primaryOpportunity: OpportunityDetail = {
   },
 };
 
-const catalogSummaries: Record<number, Pick<OpportunityDetail, "title" | "organization" | "type">> = {
-  1: { title: primaryOpportunity.title, organization: primaryOpportunity.organization, type: primaryOpportunity.type },
-  2: { title: "Olimpíada Brasileira de Matemática — 2ª fase", organization: "OBMEP", type: "Olimpíada" },
-  3: { title: "Iniciação Científica Júnior em Biotecnologia", organization: "Laboratório Horizonte", type: "Pesquisa" },
-  4: { title: "Bolsa Jovens Talentos em Tecnologia", organization: "Fundação Pró-Futuro", type: "Bolsa" },
-  5: { title: "Desafio Nacional de Soluções Climáticas", organization: "Impacta Jovem", type: "Competição" },
-  6: { title: "Summer School de Ciência de Dados", organization: "Universidade Atlântica", type: "Programa de Verão" },
-  7: { title: "Maratona Brasileira de Programação Júnior", organization: "Sociedade Brasileira de Computação", type: "Competição" },
-  8: { title: "Programa Jovens Empreendedores", organization: "Instituto Geração", type: "Mentoria" },
-  9: { title: "Mentoria para Bolsas Internacionais", organization: "Pontes Educação", type: "Mentoria" },
+const catalogSummaries: Record<number, Pick<OpportunityDetail, "title" | "organization" | "type" | "officialUrl">> = {
+  1: { title: primaryOpportunity.title, organization: primaryOpportunity.organization, type: primaryOpportunity.type, officialUrl: primaryOpportunity.officialUrl },
+  2: { title: "Olimpíada Brasileira de Matemática — 2ª fase", organization: "OBMEP", type: "Olimpíada", officialUrl: "https://www.obmep.org.br/" },
+  3: { title: "Iniciação Científica Júnior em Biotecnologia", organization: "Laboratório Horizonte", type: "Pesquisa", officialUrl: "https://laboratoriohorizonte.org.br/iniciacao-cientifica" },
+  4: { title: "Bolsa Jovens Talentos em Tecnologia", organization: "Fundação Pró-Futuro", type: "Bolsa", officialUrl: "https://fundacaoprofuturo.org.br/jovens-talentos" },
+  5: { title: "Desafio Nacional de Soluções Climáticas", organization: "Impacta Jovem", type: "Competição", officialUrl: "https://impactajovem.org.br/desafio-climatico" },
+  6: { title: "Summer School de Ciência de Dados", organization: "Universidade Atlântica", type: "Programa de Verão", officialUrl: "https://universidadeatlantica.edu/summer-school-data" },
+  7: { title: "Maratona Brasileira de Programação Júnior", organization: "Sociedade Brasileira de Computação", type: "Competição", officialUrl: "https://www.sbc.org.br/" },
+  8: { title: "Programa Jovens Empreendedores", organization: "Instituto Geração", type: "Mentoria", officialUrl: "https://institutogeracao.org.br/jovens-empreendedores" },
+  9: { title: "Mentoria para Bolsas Internacionais", organization: "Pontes Educação", type: "Mentoria", officialUrl: "https://ponteseducacao.org.br/mentoria-bolsas" },
 };
 
 export function getOpportunityDetail(id: number): OpportunityDetail | null {
@@ -160,6 +166,7 @@ export function getOpportunityDetail(id: number): OpportunityDetail | null {
     id,
     slug: catalogItem.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
     summary: `${catalogItem.title} é uma experiência selecionada pela seConecta para estudantes que querem avançar com orientação e clareza sobre os próximos passos.`,
+    description: `${catalogItem.title} oferece uma experiência estruturada para estudantes do Ensino Médio conhecerem a área, desenvolverem habilidades práticas e entenderem os próximos passos possíveis. Consulte a organização responsável para confirmar formato, conteúdo e regras desta edição.`,
     fitSummary: `Faz sentido para estudantes que desejam explorar ${catalogItem.type.toLowerCase()} e transformar interesse em experiência concreta.`,
     recommendationReasons: [catalogItem.type, "Ensino Médio", "Gratuito", "Combina com seus interesses"],
     trajectory: primaryOpportunity.trajectory.map((step, index) => index === 1 ? { ...step, label: catalogItem.title } : step),
