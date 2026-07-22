@@ -204,3 +204,8 @@ export function getOpportunityDetail(id: number): OpportunityDetail | null {
 }
 
 export const opportunityIds = Object.keys(catalogSummaries).map(Number);
+export const opportunitySlugs = opportunityIds.map((id) => getOpportunityDetail(id)!).map((opportunity) => opportunity.slug);
+
+export function getOpportunityDetailBySlug(slug: string): OpportunityDetail | null {
+  return opportunityIds.map((id) => getOpportunityDetail(id)).find((opportunity) => opportunity?.slug === slug) ?? null;
+}

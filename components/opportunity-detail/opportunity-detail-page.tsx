@@ -17,6 +17,7 @@ import {
   Languages,
   MapPin,
   MessageCircleQuestion,
+  MessagesSquare,
   Monitor,
   Route,
   Rows3,
@@ -29,14 +30,15 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useOpportunityJourney } from "@/components/opportunity-journey-provider";
 import { DecisionHelp, type OpportunityDecisionContext } from "@/components/opportunity-detail/decision-help";
-import { OpportunityMaterials, type OpportunityMaterial } from "@/components/opportunity-detail/opportunity-materials";
-import { ActionableRequirements, type ActionableRequirement } from "@/components/opportunity-detail/actionable-requirements";
+import { OpportunityCommunityPreview } from "@/components/opportunity-detail/opportunity-community-preview";
+import { OpportunityGuide } from "@/components/opportunity-detail/opportunity-guide";
 import { SidebarCTA, type SidebarCTAUserState } from "@/components/opportunity-detail/sidebar-cta";
 import { OpportunityTimeline as OpportunityCycleTimeline } from "@/components/opportunity-detail/opportunity-timeline";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { OpportunityDetail } from "@/data/opportunity-details";
+import { getOpportunityCommunityHub, getOpportunityGuide } from "@/data/opportunity-knowledge-hubs";
 import { useJourneyOnboarding } from "@/hooks/use-journey-onboarding";
 
 const reveal = {
@@ -259,12 +261,13 @@ export function SimilarOpportunities({ opportunities }: { opportunities: Opportu
   </motion.section>;
 }
 
-type DetailSectionId = "overview" | "requirements" | "materials" | "people";
+type DetailSectionId = "overview" | "requirements" | "guide" | "community" | "people";
 
 const detailSections: { id: DetailSectionId; label: string; description: string; icon: typeof Rows3 }[] = [
   { id: "overview", label: "Visão geral", description: "Fatos e compatibilidade", icon: Rows3 },
   { id: "requirements", label: "Requisitos", description: "O que preparar", icon: BookOpenCheck },
-  { id: "materials", label: "Materiais", description: "Como se preparar", icon: FileText },
+  { id: "guide", label: "Guia", description: "Conhecimento organizado", icon: FileText },
+  { id: "community", label: "Comunidade", description: "O que está acontecendo", icon: MessagesSquare },
   { id: "people", label: "Pessoas", description: "Quem pode ajudar", icon: Users },
 ];
 
@@ -302,24 +305,16 @@ function RequirementsPanel({ opportunity }: { opportunity: OpportunityDetail }) 
   </div>;
 }
 
-function MaterialsPanel({ opportunity }: { opportunity: OpportunityDetail }) {
-  const materials: OpportunityMaterial[] = [
-    { title: "Guia oficial da oportunidade", description: "Regras, datas e critérios publicados pela organização.", type: "official", href: opportunity.officialUrl },
-    { title: "Introdução à Inteligência Artificial", description: "Uma base curta para entender os temas centrais do programa.", type: "introduction" },
-    { title: "Webinar sobre o processo seletivo", description: "Uma conversa prática sobre etapas e expectativas da seleção.", type: "video" },
-    { title: "Como escrever uma boa candidatura", description: "Orientações para comunicar motivação e experiências com clareza.", type: "application" },
-    { title: "Preparação recomendada pelo seConecta", description: "Uma seleção de conteúdos adequados ao nível desta oportunidade.", type: "recommended" },
-  ];
-  const referenceLinks: ActionableRequirement[] = [
-    { name: "Texto de motivação", description: "", resourceTitle: "Como escrever uma carta de motivação", resourceFavicon: "/icon.png" },
-    { name: "Carta de recomendação", description: "", resourceTitle: "Como pedir uma boa recomendação", resourceFavicon: "/icon.png" },
-    { name: "Entrevista", description: "", resourceTitle: "Como se preparar para uma entrevista", resourceFavicon: "/icon.png" },
-  ];
+function GuidePanel({ opportunity }: { opportunity: OpportunityDetail }) {
+  const guide = getOpportunityGuide(opportunity);
   return <div>
-    <PanelHeading eyebrow="Materiais" title="Prepare-se com boas referências." description="Conteúdos selecionados para apoiar sua candidatura quando você quiser avançar." />
-    <OpportunityMaterials materials={materials} onOpen={(material) => window.dispatchEvent(new CustomEvent("seconecta:study-material", { detail: { material, opportunityId: opportunity.id } }))} />
-    <div className="mt-8 border-t border-[#e3e8e5] pt-6"><h3 className="text-xs font-semibold text-[#1c372c]">Outras referências</h3><ActionableRequirements requirements={referenceLinks} onResourceClick={(reference) => window.dispatchEvent(new CustomEvent("seconecta:study-material", { detail: { reference, opportunityId: opportunity.id } }))} /></div>
+    <PanelHeading eyebrow="Guia" title="Tudo o que sabemos, em uma ordem útil." description="Informação oficial e orientação curada sobre candidatura, seleção e preparação." />
+    <OpportunityGuide guide={guide} onOpen={(articleId) => window.dispatchEvent(new CustomEvent("seconecta:guide-article", { detail: { articleId, opportunityId: opportunity.id } }))} />
   </div>;
+}
+
+function CommunityPanel({ opportunity }: { opportunity: OpportunityDetail }) {
+  return <div><PanelHeading eyebrow="Comunidade" title="O que está acontecendo agora." description="Uma prévia das dúvidas, experiências e pessoas ativas ao redor desta oportunidade." /><OpportunityCommunityPreview hub={getOpportunityCommunityHub(opportunity)} /></div>;
 }
 
 function PeoplePanel({ opportunity }: { opportunity: OpportunityDetail }) {
@@ -331,10 +326,14 @@ function PeoplePanel({ opportunity }: { opportunity: OpportunityDetail }) {
 
 export function OpportunityWorkspace({ opportunity }: { opportunity: OpportunityDetail }) {
   const [activeSection, setActiveSection] = useState<DetailSectionId>("overview");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("secao") === "guia") setActiveSection("guide");
+  }, []);
   const panels: Record<DetailSectionId, React.ReactNode> = {
     overview: <OverviewPanel opportunity={opportunity} />,
     requirements: <RequirementsPanel opportunity={opportunity} />,
-    materials: <MaterialsPanel opportunity={opportunity} />,
+    guide: <GuidePanel opportunity={opportunity} />,
+    community: <CommunityPanel opportunity={opportunity} />,
     people: <PeoplePanel opportunity={opportunity} />,
   };
 
